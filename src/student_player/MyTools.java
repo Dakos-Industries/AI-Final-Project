@@ -3,6 +3,9 @@ package student_player;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Random;
+
+import javax.activation.UnsupportedDataTypeException;
 
 import com.sun.corba.se.spi.orbutil.fsm.Guard.Result;
 import com.sun.org.apache.bcel.internal.generic.RETURN;
@@ -23,22 +26,59 @@ public class MyTools {
     
     public static Move GetBestMove(Node current)
     {
-    	ArrayList<PentagoMove> moves = current.bs.getAllLegalMoves();
-    	
+    	ArrayList<PentagoMove> moves = current.bs.getAllLegalMoves();	
     	PentagoMove candidateMove = moves.get(0);
     	double bestRatio = 0;
     	int attempt = 0;
+    	boolean cont = false;
+    	 	
     	for(PentagoMove move : moves)
     	{
+    		cont = false;
+    		// Check if enemy can win in the next move if we do this move
+    		PentagoBoardState tmpBoard = (PentagoBoardState) current.bs.clone();
+    	    tmpBoard.processMove(move);
+    	    ArrayList<PentagoMove> enemyMoves = tmpBoard.getAllLegalMoves();	
+    	    if (enemyMoves.size() > 0)
+    	    {
+	    	    for(PentagoMove enemyMove : enemyMoves)
+	    	    {
+	    	    	PentagoBoardState simBoard = (PentagoBoardState) tmpBoard.clone();
+	    	    	simBoard.processMove(enemyMove);
+		    	    // enemy is the opponent
+		    	    if (simBoard.getWinner() == simBoard.getOpponent())
+		    	    {
+		    	    	cont = true;
+		    	    	break;
+		    	    }
+	    	    }    
+    	    }
+    	    
+    	    if(tmpBoard.getWinner() == current.bs.getTurnPlayer())
+    	    {
+    	    	candidateMove = move;
+    	    	System.out.println("I win " + current.bs.getTurnNumber());
+    	    	break;
+    	    }
+    	    
+    	    if (cont)
+    	    {
+    	    	System.out.println("Skipping attempt: " + attempt);
+    	    	attempt++;
+    	    	continue;
+    	    }
+    	    
     		attempt++;
     		SimulationResult result = CountingDFS(current, move, new SimulationResult());
     		if (result.GetWinLossRatio() > bestRatio)
     		{
+    			System.out.println("Move = " + attempt);
     			bestRatio = result.GetWinLossRatio();
     			candidateMove = move;
-    			System.out.println("Attemp " + attempt + "| Ratio " + bestRatio + "|Games played " + (result.Losses + result.Wins + result.Draws));
     		}
-    	}   	
+    		//System.out.println("Attemp " + attempt + "| Ratio " + result.GetWinLossRatio() 
+    		//+ "|Games played " + (result.Losses + result.Wins + result.Draws));
+    	}
     	return candidateMove;
     }
     
@@ -56,18 +96,8 @@ public class MyTools {
 		next.bs.processMove(move);
 		
 		int minPlayer = next.bs.getTurnPlayer();
-		if(next.bs.getWinner() == maxPlayer)
+		if(UpdateResults(maxPlayer, minPlayer, next.bs, result))
 		{
-			result.Wins++;
-			return result;
-		} 
-		else if (next.bs.getWinner() == minPlayer)
-		{
-			result.Losses++;
-			return result;
-		}
-		else if (next.bs.getWinner() == Board.DRAW) {
-			result.Draws++;
 			return result;
 		}
 		
@@ -77,24 +107,18 @@ public class MyTools {
 		Move move2 = enemy.bs.getRandomMove();
 		enemy.bs.processMove((PentagoMove)move2);
 
-		if(enemy.bs.getWinner() == maxPlayer)
+		if(UpdateResults(maxPlayer, minPlayer, enemy.bs, result))
 		{
-			result.Wins++;
-			return result;
-		} 
-		else if (enemy.bs.getWinner() == minPlayer)
-		{
-			result.Losses++;
 			return result;
 		}
-		else if (enemy.bs.getWinner() == Board.DRAW) {
-			result.Draws++;
-			return result;
-		}
+		
 		ArrayList<PentagoMove> moves = enemy.bs.getAllLegalMoves();
     	
+		// add some randomness
+		Collections.shuffle(moves);
+		
     	for(PentagoMove pentagoMove : moves)
-    	{
+    	{	
     		SimulationResult simulationResult = CountingDFS(enemy, pentagoMove, result);
     		if(!simulationResult.ContinueSim)
     		{
@@ -102,6 +126,30 @@ public class MyTools {
     		}
     	}
 		return result;
+    }
+    
+    /**
+     * Return true is results were updated; false otherwise
+     * 
+     * */
+    private static Boolean UpdateResults(int maxPlayer, int minPlayer, PentagoBoardState pbs, SimulationResult result)
+    {
+    	int winner = pbs.getWinner();
+    	if(winner == maxPlayer)
+		{
+			result.Wins++;
+			return true;
+		} 
+		else if (winner == minPlayer)
+		{
+			result.Losses++;
+			return true;
+		}
+		else if (winner == Board.DRAW) {
+			result.Draws++;
+			return true;
+		}
+    	return false;
     }
 
     public static PentagoMove MonteCarlo(Node current)
@@ -140,8 +188,6 @@ public class MyTools {
     	
     	return bestMove;
     }
-
-
 
     private static SimulationResult InitializeMC(Node current, PentagoMove moveA, PentagoMove moveB)
     {
@@ -199,5 +245,4 @@ public class MyTools {
     	
 		return result;
     }
-
 }
