@@ -20,7 +20,7 @@ public class StudentPlayer extends PentagoPlayer {
      * associate you with your agent. The constructor should do nothing else.
      */
     public StudentPlayer() {
-        super("Zero System");
+        super("260689391");
     }
 
     /**
@@ -29,74 +29,10 @@ public class StudentPlayer extends PentagoPlayer {
      * make decisions.
      */
     public Move chooseMove(PentagoBoardState boardState) {        
-        Node root = new Node();
-        root.bs = (PentagoBoardState) boardState.clone();
-        
-        Move attempt = MyTools.GetBestMove(root);
+
+        Move attempt = MyTools.EngageZeroSystem(boardState);
 
         // Return your move to be processed by the server.
         return attempt;
     }
-    
-    private Move GetBestMove(Node current)
-    {
-    	ArrayList<PentagoMove> moves = current.bs.getAllLegalMoves();
-    	
-    	for(PentagoMove move : moves)
-    	{
-    		if (this.SimpleDFS(current, move))
-    		{
-    			return move;
-    		}
-    	}
-    	
-    	
-    	return moves.get(0);
-    }
-    
-    private Boolean SimpleDFS(Node current, PentagoMove move)
-    {
-    	Node next = new Node();
-		next.bs = (PentagoBoardState) current.bs.clone();
-		int maxPlayer = next.bs.getTurnPlayer();
-		next.bs.processMove(move);
-		
-		if(next.bs.getWinner() == maxPlayer)
-		{
-			return true;
-		}
-		
-		//simulate enemy
-		Node enemy = new Node();
-		enemy.bs = (PentagoBoardState) next.bs.clone();
-		int minPlayer = next.bs.getTurnPlayer();
-		PentagoMove move2 = (PentagoMove) enemy.bs.getRandomMove();
-		enemy.bs.processMove(move2);
-		
-		if(next.bs.getWinner() == minPlayer)
-		{
-			return false;
-		}
-		
-		//draw
-		if (enemy.bs.getTurnNumber() >= 36)
-		{
-			return false;
-		}
-		
-		ArrayList<PentagoMove> moves = enemy.bs.getAllLegalMoves();
-    	
-    	for(PentagoMove m : moves)
-    	{
-    		if (this.SimpleDFS(enemy, m))
-    		{
-    			return true;
-    		}
-    	}
-    	
-    	// no move yields victory
-    	return false;
-		
-    }
-    
 }

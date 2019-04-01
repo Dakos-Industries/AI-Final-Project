@@ -1,6 +1,7 @@
 package pentago_swap;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 import boardgame.Board;
 import boardgame.Move;
@@ -23,36 +24,70 @@ public class RandomPentagoPlayer extends PentagoPlayer {
     @Override
     public Move chooseMove(PentagoBoardState boardState) {
         //return boardState.getRandomMove();
-    	Node root = new Node();
-        root.bs = (PentagoBoardState) boardState.clone();
-        
-        Move attempt = this.GetBestMove(root);
-
-        // Return your move to be processed by the server.
-        return attempt;
+    	Node node = new Node();
+    	node.CurrentState = (PentagoBoardState) boardState.clone();
+    	return GetBestMove(node);
     }
     
-    public Move GetBestMove(Node current)
+    public static Move GetBestMove(Node current)
     {
-    	ArrayList<PentagoMove> moves = current.bs.getAllLegalMoves();
-    	
+    	ArrayList<PentagoMove> moves = current.CurrentState.getAllLegalMoves();	
     	PentagoMove candidateMove = moves.get(0);
     	double bestRatio = 0;
     	int attempt = 0;
+    	boolean cont = false;
+    	 	
     	for(PentagoMove move : moves)
     	{
+    		cont = false;
+    		// Check if enemy can win in the next move if we do this move
+    		PentagoBoardState tmpBoard = (PentagoBoardState) current.CurrentState.clone();
+    	    tmpBoard.processMove(move);
+    	    ArrayList<PentagoMove> enemyMoves = tmpBoard.getAllLegalMoves();	
+    	    if (enemyMoves.size() > 0)
+    	    {
+	    	    for(PentagoMove enemyMove : enemyMoves)
+	    	    {
+	    	    	PentagoBoardState simBoard = (PentagoBoardState) tmpBoard.clone();
+	    	    	simBoard.processMove(enemyMove);
+		    	    // enemy is the opponent
+		    	    if (simBoard.getWinner() == simBoard.getOpponent())
+		    	    {
+		    	    	cont = true;
+		    	    	break;
+		    	    }
+	    	    }    
+    	    }
+    	    
+    	    if(tmpBoard.getWinner() == current.CurrentState.getTurnPlayer())
+    	    {
+    	    	candidateMove = move;
+    	    	System.out.println("I win " + current.CurrentState.getTurnNumber());
+    	    	break;
+    	    }
+    	    
+    	    if (cont)
+    	    {
+    	    	System.out.println("Skipping attempt: " + attempt);
+    	    	attempt++;
+    	    	continue;
+    	    }
+    	    
     		attempt++;
     		SimulationResult result = CountingDFS(current, move, new SimulationResult());
-    		if (result.GetHeuristicScore() > bestRatio)
+    		if (result.GetWinLossRatio() > bestRatio)
     		{
-    			bestRatio = result.GetHeuristicScore();
+    			System.out.println("Move = " + attempt);
+    			bestRatio = result.GetWinLossRatio();
     			candidateMove = move;
     		}
-    	}   	
+    		//System.out.println("Attemp " + attempt + "| Ratio " + result.GetWinLossRatio() 
+    		//+ "|Games played " + (result.Losses + result.Wins + result.Draws));
+    	}
     	return candidateMove;
     }
     
-    private SimulationResult CountingDFS(Node current, PentagoMove move, SimulationResult result)
+    private static SimulationResult CountingDFS(Node current, PentagoMove move, SimulationResult result)
     {
 		if(result.GetTotalTrials() >= 175)
 		{
@@ -61,50 +96,34 @@ public class RandomPentagoPlayer extends PentagoPlayer {
 		}
 		
     	Node next = new Node();
-		next.bs = (PentagoBoardState) current.bs.clone();
-		int maxPlayer = next.bs.getTurnPlayer();
-		next.bs.processMove(move);
+		next.CurrentState = (PentagoBoardState) current.CurrentState.clone();
+		int maxPlayer = next.CurrentState.getTurnPlayer();
+		next.CurrentState.processMove(move);
 		
-		int minPlayer = next.bs.getTurnPlayer();
-		if(next.bs.getWinner() == maxPlayer)
+		int minPlayer = next.CurrentState.getTurnPlayer();
+		if(UpdateResults(maxPlayer, minPlayer, next.CurrentState, result))
 		{
-			result.Wins++;
-			return result;
-		} 
-		else if (next.bs.getWinner() == minPlayer)
-		{
-			result.Losses++;
-			return result;
-		}
-		else if (next.bs.getWinner() == Board.DRAW) {
-			result.Draws++;
 			return result;
 		}
 		
 		//simulate enemy
 		Node enemy = new Node();
-		enemy.bs = (PentagoBoardState) next.bs.clone();
-		Move move2 = enemy.bs.getRandomMove();
-		enemy.bs.processMove((PentagoMove)move2);
+		enemy.CurrentState = (PentagoBoardState) next.CurrentState.clone();
+		Move move2 = enemy.CurrentState.getRandomMove();
+		enemy.CurrentState.processMove((PentagoMove)move2);
 
-		if(enemy.bs.getWinner() == maxPlayer)
+		if(UpdateResults(maxPlayer, minPlayer, enemy.CurrentState, result))
 		{
-			result.Wins++;
-			return result;
-		} 
-		else if (enemy.bs.getWinner() == minPlayer)
-		{
-			result.Losses++;
 			return result;
 		}
-		else if (enemy.bs.getWinner() == Board.DRAW) {
-			result.Draws++;
-			return result;
-		}
-		ArrayList<PentagoMove> moves = enemy.bs.getAllLegalMoves();
+		
+		ArrayList<PentagoMove> moves = enemy.CurrentState.getAllLegalMoves();
     	
+		// add some randomness
+		Collections.shuffle(moves);
+		
     	for(PentagoMove pentagoMove : moves)
-    	{
+    	{	
     		SimulationResult simulationResult = CountingDFS(enemy, pentagoMove, result);
     		if(!simulationResult.ContinueSim)
     		{
@@ -112,5 +131,29 @@ public class RandomPentagoPlayer extends PentagoPlayer {
     		}
     	}
 		return result;
+    }
+    
+    /**
+     * Return true is results were updated; false otherwise
+     * 
+     * */
+    private static Boolean UpdateResults(int maxPlayer, int minPlayer, PentagoBoardState pbs, SimulationResult result)
+    {
+    	int winner = pbs.getWinner();
+    	if(winner == maxPlayer)
+		{
+			result.Wins++;
+			return true;
+		} 
+		else if (winner == minPlayer)
+		{
+			result.Losses++;
+			return true;
+		}
+		else if (winner == Board.DRAW) {
+			result.Draws++;
+			return true;
+		}
+    	return false;
     }
 }
