@@ -2,6 +2,11 @@ package student_player;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Map; 
+import java.util.HashMap;
+import java.util.Set;
+
+import org.omg.CORBA.PRIVATE_MEMBER;
 
 import boardgame.Board;
 import boardgame.Move;
@@ -49,10 +54,10 @@ public class ZeroSystemV2 {
     	System.out.println("Turn " + this.CurrentTurn);
     	if(this.CurrentTurn == 0)
     	{
-    		this.TrialLimit = 750;
+    		this.TrialLimit = 1000;
     	}
-    	else if (this.CurrentTurn < 3) {
-			this.TrialLimit = 100;
+    	else if (this.CurrentTurn <= 4) {
+			this.TrialLimit = 50;
 		}
     	else
     	{
@@ -65,7 +70,15 @@ public class ZeroSystemV2 {
     		
     	    child = this.MoveAlreadyApplied(this.CurrentNode, moves.get(i));
     		
-
+    	    if(child != null)
+    	    {
+    	    	// We chose to go into this state so it should be max 
+    	    	if(child.result.GetWinLossRatio() <= this.PriorBestRatio)
+    	    	{
+    	    		continue;
+    	    	}
+    	    }
+    	    
     		PentagoBoardState tmpBoard = this.CloneBoard(this.CurrentState);
     	    tmpBoard.processMove(moves.get(i));
     	    
@@ -77,14 +90,14 @@ public class ZeroSystemV2 {
     	    	break;
     	    }
     	    
-    	    /*if(this.CurrentTurn >= 5) {
+    	    if(this.CurrentTurn >= 5) {
     	    	// Check if our move will lead to an enemy victory
     	    	// Skip the move if it does
 	    	    if (this.CanEnemyWin(tmpBoard))
 	    	    {
 	    	    	continue;
 	    	    }
-    	    }*/
+    	    }
     		
     		if(child != null)
     		{
@@ -161,13 +174,15 @@ public class ZeroSystemV2 {
 	{
 		for (Node  node : child.Children.values()) {
 			
-			if (node.result.GetWinLossRatio() >= this.PriorBestRatio) {
+			// Opponent wants to minimize
+			if (node.result.GetWinLossRatio() < this.PriorBestRatio) {
 				
 				for (PentagoMove move : node.bs.getAllLegalMoves()) {
 					
 					Node prune2 = this.MoveAlreadyApplied(node, move);
 					
 					if(prune2 != null) {
+						// We want to maximize
 						if(prune2.result.GetWinLossRatio() >= this.PriorBestRatio)
 						{
 							DepthLimitedSimulation(child, move);
@@ -220,14 +235,15 @@ public class ZeroSystemV2 {
 		{
 			// This is an expensive operation so make it take
 			// up a good amount of trials or we will time out
-			child.IncrementLosses(15);
+			child.IncrementLosses();
+			//child.SetNegativeScore();
 			return current;
 		}
 		
 		
 		// Enemy has no move to win instantly so chose random move and continue
 		
-		PentagoMove move2 = (PentagoMove) enemy.getRandomMove();
+		PentagoMove move2 = this.GetWorstMove(child);
 		
 		// explore unexplored moves
 		enemy.processMove(move2);
@@ -266,6 +282,26 @@ public class ZeroSystemV2 {
     	
 		return current;
     }
+	
+	private PentagoMove GetWorstMove(Node current)
+	{
+		if(current.Children.isEmpty())
+		{
+			return (PentagoMove) current.bs.getRandomMove();
+		}
+		
+
+		for(Map.Entry<PentagoMove, Node> entry : current.Children.entrySet())
+		{
+			if(entry.getValue().result.GetWinLossRatio() < this.PriorBestRatio)
+			{
+				System.out.println("Worst");
+				return entry.getKey();
+			}
+		}
+		
+		return (PentagoMove) current.bs.getRandomMove();
+	}
     
 	/**
 	 * Check if the enemy can win with any of their next moves
