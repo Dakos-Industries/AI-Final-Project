@@ -1,9 +1,5 @@
 package student_player;
 
-import org.omg.CORBA.PRIVATE_MEMBER;
-
-import sun.management.counter.Variability;
-
 public class SimulationResult {
 
 	public double Wins = 0;

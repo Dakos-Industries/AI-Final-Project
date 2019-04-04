@@ -88,7 +88,7 @@ public class MyTools {
 			return result;
 		}
 		
-    	Node next = new Node();
+    	Node next = new Node(current.bs);
 		next.bs = (PentagoBoardState) current.bs.clone();
 		int maxPlayer = next.bs.getTurnPlayer();
 		next.bs.processMove(move);
@@ -100,7 +100,7 @@ public class MyTools {
 		}
 		
 		//simulate enemy
-		Node enemy = new Node();
+		Node enemy = new Node(current.bs);
 		enemy.bs = (PentagoBoardState) next.bs.clone();
 		Move move2 = enemy.bs.getRandomMove();
 		enemy.bs.processMove((PentagoMove)move2);
