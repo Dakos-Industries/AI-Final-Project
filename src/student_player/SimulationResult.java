@@ -1,9 +1,5 @@
 package student_player;
 
-import org.omg.CORBA.PRIVATE_MEMBER;
-
-import sun.management.counter.Variability;
-
 public class SimulationResult {
 
 	public double Wins = 0;
@@ -12,6 +8,10 @@ public class SimulationResult {
 	
 	public double Draws = 0;
 	
+	/**
+	 * False if enough statistics have been acquired for the given run.
+	 * If it is false, then the simulation will return.
+	 * */
 	public boolean ContinueSim = true;
 
 	public double GetWinLossRatio()
@@ -22,10 +22,5 @@ public class SimulationResult {
 	public int GetTotalTrials()
 	{
 		return (int)(this.Wins + this.Losses + this.Draws);
-	}
-	
-	public double GetHeuristicScore()
-	{
-		return (this.Wins - this.Losses + this.Draws * 0.05);
 	}
 }
