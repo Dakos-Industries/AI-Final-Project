@@ -3,6 +3,8 @@ COMP 424 - Project Specification:
 
 Pentago-Swap:
 
+View full Specification in project_specification.pdf.
+
 Code due: Wednesday, April 10, 2019
 
 Report due: Thursday, April 11, 2019
